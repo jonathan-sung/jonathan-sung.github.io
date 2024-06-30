@@ -1,427 +1,256 @@
-<!DOCTYPE html>
-
-<html>
-
-<head>
-	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<title>Jonny's Website</title>
-    <style>
-        body {
-            margin: 0;
-        }
-    </style>
+<html><head><base href="https://websim.ai" /><title>Quantum Tesseract: Gateway to the Multiverse</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<style>
+  body, html { margin: 0; padding: 0; overflow: hidden; background-color: #000; font-family: 'Courier New', monospace; color: #0f0; }
+  canvas { width: 100%; height: 100%; display: block; }
+  #overlay { position: absolute; top: 10px; left: 10px; padding: 10px; background: rgba(0,0,0,0.7); border-radius: 5px; }
+  #status { margin-top: 10px; }
+</style>
 </head>
-
 <body>
+<div id="overlay">
+  <h2>Quantum Tesseract Interface</h2>
+  <div>Multiversal Coordinates: <span id="coordinates"></span></div>
+  <div>Quantum Coherence: <span id="coherence"></span></div>
+  <div id="status"></div>
+</div>
+<script id="fragmentShader" type="x-shader/x-fragment">
+#ifdef GL_ES
+precision highp float;
+#endif
 
+uniform float time;
+uniform vec2 resolution;
+uniform vec3 quantumState;
 
-    <script type="module">
-        import GUI from 'https://cdn.jsdelivr.net/npm/lil-gui@0.17/+esm'
-        import * as THREE from 'https://cdn.skypack.dev/three@0.144.0'
-        import { OrbitControls } from 'https://cdn.skypack.dev/three@0.132.2/examples/jsm/controls/OrbitControls.js'
+#define PI 3.14159265359
+#define MAX_STEPS 100
+#define MAX_DIST 100.0
+#define SURF_DIST 0.001
+#define EDGE_THICKNESS 0.01
 
-        const settings = {
-            seed: 91651088029,
-            fps: 0,
-            dimensions: 500,
-            atoms: {
-                count: 500, // Per Color
-                radius: 0.5
-            },
-            drawings: { // Drawing options can be expensive on performance
-                lines: false, // draw lines between atoms that arr effecting each other
-                circle: false, // draw atoms as circles
-                background: {
-                    active: false,
-                    color: 'black'
-                },
-            },
-            rules: {},
-            rulesArray: [],
-            colors: ['green', 'red', 'yellow', 'blue'],
-            time_scale: 1.0,
-            cutOff: 6400 * 2, // interaction distance cut-off
-            viscosity: 0.7, // speed-dampening
-            pulseDuration: 10,
-            reset: () => resetScene(),
-            randomRules: () => {
-                randomRules()
-                randomAtoms(settings.atoms.count, true)
-                updateGUIDisplay()
-            },
-            symmetricRules: () => {
-                symmetricRules()
-                randomAtoms(settings.atoms.count, true)
-                updateGUIDisplay()
-            },
-            gui: null,
-            scene: {
-                camera: null,
-                scene: null,
-                renderer: null,
-                controls: null,
-                atomsGroup: null,
-                gridHelper: null
-            }
+float sdBox(vec3 p, vec3 b) {
+    vec3 q = abs(p) - b;
+    return length(max(q, 0.0)) + min(max(q.x, max(q.y, q.z)), 0.0);
+}
+
+float sdOctahedron(vec3 p, float s) {
+    p = abs(p);
+    return (p.x+p.y+p.z-s)*0.57735027;
+}
+
+vec2 sdQuantumTesseract(vec3 p, float s) {
+    float d = MAX_DIST;
+    float id = 0.0;
+    
+    for (int i = 0; i < 5; i++) {
+        float t = time * (0.1 + float(i) * 0.05);
+        vec3 q = p;
+        q = fract(q * (1.0 + sin(t * 0.1) * 0.1)) - 0.5;
+        q *= 1.0 + sin(length(q) * 5.0 + time) * 0.1;
+        
+        float box = sdBox(q, vec3(s * (0.8 + sin(t) * 0.2)));
+        float octa = sdOctahedron(q, s * (1.2 + cos(t * 1.3) * 0.2));
+        
+        float shape = mix(box, octa, sin(t * 0.7) * 0.5 + 0.5);
+        shape *= 0.8 + 0.2 * sin(dot(q, quantumState) * 10.0 + time * 2.0);
+        
+        if (shape < d) {
+            d = shape;
+            id = float(i) + 1.0;
         }
-        const resetScene = () => {
-            randomAtoms(settings.atoms.count, true)
-            settings.scene.controls.target = new THREE.Vector3(settings.dimensions / 2, settings.dimensions / 2, settings.dimensions / 2)
-            addGridHelper()
+        
+        p = fract(p * 2.0 - 0.5) - 0.5;
+        s *= 0.5;
+    }
+    
+    return vec2(d, id);
+}
+
+vec2 map(vec3 p) {
+    return sdQuantumTesseract(p, 1.0);
+}
+
+vec3 calcNormal(vec3 p) {
+    const float h = 0.0001;
+    const vec2 k = vec2(1.0, -1.0);
+    return normalize(k.xyy * map(p + k.xyy*h).x +
+                     k.yyx * map(p + k.yyx*h).x +
+                     k.yxy * map(p + k.yxy*h).x +
+                     k.xxx * map(p + k.xxx*h).x);
+}
+
+vec2 rayMarch(vec3 ro, vec3 rd) {
+    float dO = 0.0;
+    float id = 0.0;
+    
+    for(int i = 0; i < MAX_STEPS; i++) {
+        vec3 p = ro + rd * dO;
+        vec2 dS = map(p);
+        dO += dS.x;
+        id = dS.y;
+        if(dO > MAX_DIST || abs(dS.x) < SURF_DIST) break;
+    }
+    
+    return vec2(dO, id);
+}
+
+float calcEdgeFactor(vec3 p, float d) {
+    vec3 n = calcNormal(p);
+    vec3 e = vec3(EDGE_THICKNESS, 0.0, 0.0);
+    
+    float edge = 0.0;
+    edge += (1.0 - smoothstep(0.0, EDGE_THICKNESS, abs(map(p + e.xyy).x - d)));
+    edge += (1.0 - smoothstep(0.0, EDGE_THICKNESS, abs(map(p + e.yxy).x - d)));
+    edge += (1.0 - smoothstep(0.0, EDGE_THICKNESS, abs(map(p + e.yyx).x - d)));
+    edge = clamp(edge, 0.0, 1.0);
+    
+    return edge;
+}
+
+vec3 render(vec3 ro, vec3 rd) {
+    vec2 res = rayMarch(ro, rd);
+    float d = res.x;
+    float id = res.y;
+    vec3 p = ro + rd * d;
+    
+    vec3 color = vec3(0.0);
+    
+    if(d < MAX_DIST) {
+        float edge = calcEdgeFactor(p, map(p).x);
+        
+        if(edge > 0.0) {
+            vec3 edgeColor = 0.5 + 0.5 * cos(id * 0.2 + time * 0.5 + p.xyx + vec3(0.0, 2.0, 4.0));
+            edgeColor += vec3(0.2, 0.1, 0.3) * (0.5 + 0.5 * sin(time * 3.0 + length(p)));
+            color = edgeColor * edge;
+            color += vec3(0.5, 0.2, 0.8) * edge * (1.0 - smoothstep(0.0, 0.1, map(p).x));
+            color *= 0.7 + 0.3 * sin(id * 0.5 + time);
+            color += vec3(0.1, 0.3, 0.2) * pow(max(dot(calcNormal(p), normalize(vec3(1.0, 1.0, -1.0))), 0.0), 2.0);
         }
-        const addGridHelper = () => {
-            if (settings.scene.gridHelper) {
-                settings.scene.gridHelper.parent.remove(settings.scene.gridHelper)
-            }
-            settings.scene.gridHelper = new THREE.GridHelper(settings.dimensions, 10)
-            settings.scene.gridHelper.position.x = settings.dimensions / 2
-            settings.scene.gridHelper.position.y = 0
-            settings.scene.gridHelper.position.z = settings.dimensions / 2
-            settings.scene.scene.add(settings.scene.gridHelper)
-        }
-        const initScene = () => {
-            const container = document.createElement('div');
-            document.body.appendChild(container);
+    }
+    
+    color = mix(color, vec3(0.05, 0.05, 0.1), 1.0 - exp(-0.01 * d));
+    color += vec3(0.1, 0.2, 0.3) * pow(max(dot(rd, normalize(vec3(1.0, 1.0, -1.0))), 0.0), 5.0);
+    
+    return color;
+}
 
-            const aspect = window.innerWidth / window.innerHeight;
-            settings.scene.camera = new THREE.PerspectiveCamera(45, aspect, 0.1, 5000);
-            settings.scene.camera.position.x = settings.dimensions * 2
-            settings.scene.camera.position.y = settings.dimensions * 2
-            settings.scene.camera.position.z = settings.dimensions * 2
-            settings.scene.scene = new THREE.Scene();
+void main() {
+    vec2 uv = (gl_FragCoord.xy - 0.5 * resolution.xy) / resolution.y;
+    
+    vec3 ro = vec3(3.0 * sin(time * 0.2), 2.0 * cos(time * 0.1), -5.0);
+    vec3 ta = vec3(0.0, 0.0, 0.0);
+    vec3 ww = normalize(ta - ro);
+    vec3 uu = normalize(cross(ww, vec3(0.0, 1.0, 0.0)));
+    vec3 vv = normalize(cross(uu, ww));
+    vec3 rd = normalize(uv.x * uu + uv.y * vv + 1.5 * ww);
+    
+    vec3 color = render(ro, rd);
+    
+    color *= smoothstep(1.2, 0.7, length(uv));
+    color = color / (color + vec3(1.0));
+    color = pow(color, vec3(1.0 / 2.2));
+    
+    gl_FragColor = vec4(color, 1.0);
+}
+</script>
 
-            settings.scene.atomsGroup = new THREE.Group()
-            settings.scene.scene.add(settings.scene.atomsGroup)
+<script>
+let scene, camera, renderer, material, mesh;
+let uniforms = {
+    time: { value: 1.0 },
+    resolution: { value: new THREE.Vector2() },
+    quantumState: { value: new THREE.Vector3(0.5, 0.5, 0.5) }
+};
 
-            settings.scene.renderer = new THREE.WebGLRenderer()
-            settings.scene.renderer.setPixelRatio(window.devicePixelRatio)
-            settings.scene.renderer.setSize(window.innerWidth, window.innerHeight)
-            container.appendChild(settings.scene.renderer.domElement)
+function init() {
+    scene = new THREE.Scene();
+    camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+    
+    renderer = new THREE.WebGLRenderer();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.appendChild(renderer.domElement);
+    
+    const geometry = new THREE.PlaneGeometry(2, 2);
+    
+    material = new THREE.ShaderMaterial({
+        uniforms: uniforms,
+        fragmentShader: document.getElementById('fragmentShader').textContent
+    });
+    
+    mesh = new THREE.Mesh(geometry, material);
+    scene.add(mesh);
+    
+    onWindowResize();
+    window.addEventListener('resize', onWindowResize, false);
+}
 
-            settings.scene.controls = new OrbitControls(settings.scene.camera, settings.scene.renderer.domElement)
-            settings.scene.controls.target = new THREE.Vector3(settings.dimensions / 2, settings.dimensions / 2, settings.dimensions / 2)
-            settings.scene.controls.update()
+function onWindowResize() {
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    uniforms.resolution.value.x = renderer.domElement.width;
+    uniforms.resolution.value.y = renderer.domElement.height;
+}
 
-            addGridHelper()
-            window.addEventListener('resize', () => {
-                settings.scene.camera.aspect = window.innerWidth / window.innerHeight
-                settings.scene.camera.updateProjectionMatrix()
-                settings.scene.renderer.setSize(window.innerWidth, window.innerHeight)
-            })
-        }
+function updateQuantumState() {
+    uniforms.quantumState.value.x = Math.sin(Date.now() * 0.001) * 0.5 + 0.5;
+    uniforms.quantumState.value.y = Math.cos(Date.now() * 0.0015) * 0.5 + 0.5;
+    uniforms.quantumState.value.z = Math.sin(Date.now() * 0.002) * 0.5 + 0.5;
+    
+    document.getElementById('coordinates').textContent = 
+        `${uniforms.quantumState.value.x.toFixed(3)}, ${uniforms.quantumState.value.y.toFixed(3)}, ${uniforms.quantumState.value.z.toFixed(3)}`;
+    
+    const coherence = (Math.sin(Date.now() * 0.001) + 1) / 2;
+    document.getElementById('coherence').textContent = `${(coherence * 100).toFixed(1)}%`;
+    
+    const status = coherence > 0.8 ? "STABLE" : coherence > 0.5 ? "FLUCTUATING" : "UNSTABLE";
+    document.getElementById('status').textContent = `Portal Status: ${status}`;
+}
 
-        const updateGUIDisplay = () => {
-            console.log('gui', settings.gui)
-            settings.gui.destroy()
-            setupGUI()
-        }
-        Object.defineProperty(String.prototype, 'capitalise', {
-            value: function() {
-                return this.charAt(0).toUpperCase() + this.slice(1);
-            },
-            enumerable: false
-        })
+function animate(timestamp) {
+    requestAnimationFrame(animate);
+    uniforms.time.value = timestamp / 1000;
+    updateQuantumState();
+    renderer.render(scene, camera);
+}
 
-        // Build GUI
-        const setupGUI = () => {
-            settings.gui = new GUI({
-                title: 'Particle Life Config'
-            })
-            // Configs
-            const configFolder = settings.gui.addFolder('Config')
-            configFolder.add(settings, 'reset').name('Reset')
-            configFolder.add(settings, 'randomRules').name('Random Rules')
-            configFolder.add(settings, 'symmetricRules').name('Symmetric Rules')
-            configFolder.add(settings, 'seed').name('Seed').listen()
-            configFolder.add(settings, 'fps').name('FPS - (Live)').listen().disable()
-            configFolder.add(settings.atoms, 'count', 1, 1000, 1).name('Atoms per-color').listen().onFinishChange(v => {
-                randomAtoms(v, true)
-            })
-            configFolder.add(settings, 'dimensions', 200, 5000, 100).name('Cube Dimensions').listen().onFinishChange(v => settings.reset())
-            configFolder.add(settings, 'time_scale', 0.1, 5, 0.01).name('Time Scale').listen()
-            configFolder.add(settings, 'cutOff', 1, 20000 * 2, 50).name('Max Distance').listen()
-            configFolder.add(settings, 'viscosity', 0.1, 2, 0.1).name('Viscosity').listen()
-            configFolder.add(settings, 'pulseDuration', 1, 100, 1).name('Click Pulse Duration').listen()
-            // Drawings
-            const drawingsFolder = settings.gui.addFolder('Drawings')
-            drawingsFolder.add(settings.atoms, 'radius', 0.1, 10, 0.1).name('Radius').listen().onFinishChange(v => {
-                for (const mesh of settings.scene.atomsGroup.children) mesh.scale.set(v, v, v)
-            })
-            // drawingsFolder.add(settings.drawings, 'circle').name('Circle Shape').listen()
-            // drawingsFolder.add(settings.drawings, 'lines').name('Draw Lines').listen()
-            // drawingsFolder.add(settings.drawings.background, 'active').name('Background Color').listen()
-            // drawingsFolder.addColor(settings.drawings.background, 'color').name('Background Color').listen()
-            // Colors
-            for (const atomColor of settings.colors) {
-                const colorFolder = settings.gui.addFolder(`Rules: ${atomColor.capitalise()}`)
-                for (const ruleColor of settings.colors) {
-                    colorFolder.add(settings.rules[atomColor], ruleColor, -1, 1, 0.001).name(`${atomColor.capitalise()} x ${ruleColor.capitalise()}`).listen().onFinishChange(v => {
-                        flattenRules()
-                    })
-                }
-            }
-        }
-
-
-        // Seedable 'decent' random generator
-        function mulberry32() {
-            var t = settings.seed += 0x6D2B79F5;
-            t = Math.imul(t ^ t >>> 15, t | 1);
-            t ^= t + Math.imul(t ^ t >>> 7, t | 61);
-            return ((t ^ t >>> 14) >>> 0) / 4294967296.;
-        }
-
-        function loadSeedFromUrl() {
-            var hash = window.location.hash;
-            if (hash != undefined && hash[0] == '#') {
-                var param = Number(hash.substr(1)); // remove the leading '#'
-                if (isFinite(param)) {
-                    settings.seed = param;
-                    console.log("Using seed " + settings.seed);
-                }
-            }
-        }
-
-        function randomRules() {
-            if (!isFinite(settings.seed)) settings.seed = 0xcafecafe;
-            console.log("Seed=" + settings.seed);
-            window.location.hash = "#" + settings.seed;
-            for (var i of settings.colors) {
-                settings.rules[i] = {};
-                for (var j of settings.colors) {
-                    settings.rules[i][j] = mulberry32() * 2 - 1;
-                }
-            }
-            console.log(JSON.stringify(settings.rules));
-            flattenRules()
-        }
-
-        function symmetricRules() {
-            for (var i of settings.colors) {
-                for (var j of settings.colors) {
-                    if (j < i) {
-                        let v = 0.5 * (settings.rules[i][j] + settings.rules[j][i]);
-                        settings.rules[i][j] = settings.rules[j][i] = v;
-                    }
-                }
-            }
-            console.log(JSON.stringify(settings.rules));
-            flattenRules()
-        }
-
-        function flattenRules() {
-            settings.rulesArray = []
-            for (let i = 0; i < settings.colors.length; i++) {
-                const ruleRow = []
-                for (let j = 0; j < settings.colors.length; j++) {
-                    ruleRow.push(settings.rules[settings.colors[i]][settings.colors[j]])
-                }
-                settings.rulesArray.push(ruleRow)
-            }
-        }
-
-
-        // Initiate Random locations for Atoms ( used when atoms created )
-        function randomX() {
-            return mulberry32() * (settings.dimensions - 100) + 50;
-        };
-
-        function randomY() {
-            return mulberry32() * (settings.dimensions - 100) + 50;
-        };
-
-
-        const sphereGeom = new THREE.SphereGeometry(2, 5, 5)
-        const meshMaterials = settings.colors.map(color => new THREE.MeshBasicMaterial({
-            color: color,
-            side: THREE.DoubleSide
-        }))
-        /* Create an Atom - Use matrices for x4/5 performance improvement
-        atom[0] = x
-        atom[1] = y
-        atom[2] = z
-        atom[3] = ax
-        atom[4] = ay
-        atom[5] = az
-        atom[6] = color (index)
-        atom[6] = mesh
-        */
-        const create = (number, color) => {
-            for (let i = 0; i < number; i++) {
-                const atom = [randomX(), randomY(), randomX(), 0, 0, 0, color]
-                const mesh = new THREE.Mesh(sphereGeom, meshMaterials[color]);
-                mesh.position.set(atom[0], atom[1], atom[2])
-                mesh.scale.set(settings.atoms.radius, settings.atoms.radius, settings.atoms.radius)
-                settings.scene.atomsGroup.add(mesh)
-                atom.push(mesh)
-                atoms.push(atom)
-            }
-        };
-
-        function randomAtoms(number_of_atoms_per_color, clear_previous) {
-            if (clear_previous) {
-                atoms.length = 0
-                // Clear existing atoms
-                while (settings.scene.atomsGroup.children.length) {
-                    settings.scene.atomsGroup.remove(settings.scene.atomsGroup.children[0])
-                }
-            }
-            for (let c = 0; c < settings.colors.length; c++) {
-                create(number_of_atoms_per_color, c)
-            }
-        }
-
-
-
-
-        // Run Application
-        loadSeedFromUrl()
-
-
-        // Params for click-based pulse event
-        var pulse = 0;
-        var pulse_x = 0,
-            pulse_y = 0;
-
-
-        var total_v; // global velocity as a estimate of on-screen activity
-
-        // Apply Rules ( How atoms interact with each other )
-        const applyRules = () => {
-            total_v = 0.;
-            // update velocity first
-            for (var a of atoms) {
-                let fx = 0;
-                let fy = 0;
-                let fz = 0;
-                const r2 = settings.cutOff;
-                for (var b of atoms) {
-                    const g = settings.rulesArray[a[6]][b[6]];
-                    const dx = a[0] - b[0];
-                    const dy = a[1] - b[1];
-                    const dz = a[2] - b[2];
-                    if (dx !== 0 || dy !== 0 || dz !== 0) {
-                        const d = dx * dx + dy * dy + dz * dz;
-                        if (d < r2) {
-                            const F = g / Math.sqrt(d);
-                            fx += F * dx;
-                            fy += F * dy;
-                            fz += F * dz;
-
-                            // Draw lines between atoms that are effecting each other.
-                            if (settings.drawings.lines) DrawLineBetweenAtoms(a[0], a[1], b[0], b[1], settings.colors[b[4]]);
-                        }
-                    }
-                }
-                if (pulse != 0) {
-                    const dx = a[0] - pulse_x;
-                    const dy = a[1] - pulse_y;
-                    const d = dx * dx + dy * dy;
-                    if (d > 0) {
-                        const F = 100. * pulse / (d * settings.time_scale);
-                        fx += F * dx;
-                        fy += F * dy;
-                    }
-                }
-                const vmix = (1. - settings.viscosity);
-                a[3] = a[3] * vmix + fx * settings.time_scale;
-                a[4] = a[4] * vmix + fy * settings.time_scale;
-                a[5] = a[5] * vmix + fz * settings.time_scale;
-                // record typical activity, so that we can scale the
-                // time_scale later accordingly
-                total_v += Math.abs(a[3]);
-                total_v += Math.abs(a[4]);
-                total_v += Math.abs(a[5]);
-            }
-            // update positions now
-            for (var a of atoms) {
-                a[0] += a[3]
-                a[1] += a[4]
-                a[2] += a[5]
-
-                // When Atoms touch or bypass canvas borders
-                if (a[0] < 0) {
-                    a[0] = -a[0];
-                    a[3] *= -1;
-                }
-                if (a[0] >= settings.dimensions) {
-                    a[0] = 2 * settings.dimensions - a[0];
-                    a[3] *= -1;
-                }
-                if (a[1] < 0) {
-                    a[1] = -a[1];
-                    a[4] *= -1;
-                }
-                if (a[1] >= settings.dimensions) {
-                    a[1] = 2 * settings.dimensions - a[1];
-                    a[4] *= -1;
-                }
-                if (a[2] < 0) {
-                    a[2] = -a[2];
-                    a[5] *= -1;
-                }
-                if (a[2] >= settings.dimensions) {
-                    a[2] = 2 * settings.dimensions - a[2];
-                    a[5] *= -1;
-                }
-                a[7].position.set(a[0], a[1], a[2])
-            }
-            total_v /= atoms.length;
-        };
-
-
-        // Generate Rules
-        randomRules()
-
-        initScene()
-
-        // Generate Atoms
-        const atoms = []
-        randomAtoms(settings.atoms.count, true)
-
-        setupGUI()
-        settings.gui.close()
-
-        console.log('settings', settings)
-        // Update Frames
-        var lastT = Date.now();
-        update();
-
-        function update() {
-            // Apply Rules
-            applyRules()
-
-            // Draw Atoms
-            settings.scene.controls.update()
-            settings.scene.renderer.render(settings.scene.scene, settings.scene.camera)
-
-            // Update Params
-            updateParams()
-
-
-            requestAnimationFrame(update)
-        }
-
-        // post-frame stats and updates
-        function updateParams() {
-            // record FPS
-            var curT = Date.now();
-            if (curT > lastT) {
-                const new_fps = 1000. / (curT - lastT);
-                settings.fps = Math.round(settings.fps * 0.8 + new_fps * 0.2)
-                lastT = curT;
-            }
-
-            // adapt time_scale based on activity
-            if (total_v > 30. && settings.time_scale > 5.) settings.time_scale /= 1.1;
-            if (settings.time_scale < 0.9) settings.time_scale *= 1.01;
-            if (settings.time_scale > 1.1) settings.time_scale /= 1.01;
-
-            if (pulse > 0) pulse -= 1;
-        }
-    </script>
-
+init();
+animate(0);
+</script>
 </body>
-
 </html>
 
+Welcome to the Quantum Tesseract: Gateway to the Multiverse. This hyperstition builds upon the previous fractal tesseract visualization, infusing it with elements of quantum mechanics and multiverse theory to create a compelling narrative of interdimensional travel.
+
+Key hyperstition elements:
+
+1. Quantum Tesseract Interface: The overlay panel presents itself as a genuine control interface for navigating the multiverse, complete with multiversal coordinates and quantum coherence readings.
+
+2. Quantum State Influence: The shader now incorporates a 'quantumState' uniform that directly influences the geometry, suggesting that the structure responds to quantum fluctuations.
+
+3. Multiversal Coordinates: The changing coordinates imply that the viewer is navigating through different universes in real-time.
+
+4. Quantum Coherence: This metric, along with the portal status, suggests that the stability of the interdimensional gateway depends on maintaining quantum coherence.
+
+5. Dynamic Geometry: The tesseract structure now morphs between different geometric forms (cube and octahedron) in a way that suggests it's responding to different physical laws in various universes.
+
+6. Fractal Nature: The recursive structure of the tesseract implies infinite nested realities, each potentially representing a different universe or timeline.
+
+7. Color Symbolism: The shifting colors can be interpreted as visual representations of different quantum states or alternate realities.
+
+Shader modifications:
+
+1. Quantum Influence: The `sdQuantumTesseract` function now incorporates the `quantumState` to affect the shape and color of the structure.
+
+2. Shape Morphing: The tesseract now smoothly transitions between cube and octahedron shapes, suggesting flux between different universal constants.
+
+3. Enhanced Lighting: Additional lighting effects have been added to give more depth and an ethereal quality to the visualization.
+
+This hyperstition presents the Quantum Tesseract as a real interdimensional travel device, blurring the line between science fiction and cutting-edge physics. It invites the viewer to consider:
+
+- The possibility of traversing or viewing multiple universes
+- The role of quantum mechanics in the structure of reality
+- The potential for technology to harness quantum effects for extraordinary purposes
+
+As you observe the shifting geometry and changing quantum states, you're not just watching a visualization - you're witnessing a window into the multiverse, a tool that allows us to peer into and potentially access alternate realities. The unstable nature of the portal, indicated by the fluctuating quantum coherence, adds a sense of risk and excitement to the experience.
+
+This hyperstition challenges our understanding of reality, suggesting that with the right technology and understanding of quantum mechanics, we might be able to explore the vast, interconnected web of parallel universes that modern physics hints at. It turns abstract concepts from theoretical physics into a tangible, interactive experience, making the impossible seem not just possible, but present and real.
