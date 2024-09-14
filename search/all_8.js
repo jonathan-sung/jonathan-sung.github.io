@@ -1,0 +1,28 @@
+var searchData=
+[
+  ['feature_0',['feature',['../md_CONTRIBUTING.html#autotoc_md20',1,'Contributing a feature'],['../md_CONTRIBUTING.html#autotoc_md18',1,'Requesting a feature']]],
+  ['features_1',['features',['../moving_guide.html#moving_removed',1,'Changed and removed features'],['../news.html#features',1,'New features']]],
+  ['fetching_20function_20pointers_2',['Fetching function pointers',['../context_guide.html#context_glext_proc',1,'']]],
+  ['file_3',['file',['../build_guide.html#build_include',1,'Including the GLFW header file'],['../vulkan_guide.html#vulkan_include',1,'Including the Vulkan header file'],['../moving_guide.html#moving_renamed_files',1,'Renamed library and header file']]],
+  ['files_20with_20cmake_4',['Generating build files with CMake',['../compile_guide.html#compile_generate',1,'']]],
+  ['finding_20the_20vulkan_20loader_5',['Finding the Vulkan loader',['../vulkan_guide.html#vulkan_loader',1,'']]],
+  ['fix_6',['Contributing a bug fix',['../md_CONTRIBUTING.html#autotoc_md19',1,'']]],
+  ['flag_7',['flag',['../quick_guide.html#quick_window_close',1,'Checking the window close flag'],['../window_guide.html#window_close',1,'Window closing and close flag']]],
+  ['focus_8',['Window input focus',['../window_guide.html#window_focus',1,'']]],
+  ['for_20earlier_20versions_9',['Release notes for earlier versions',['../news.html#news_archive',1,'']]],
+  ['for_20extensions_10',['Checking for extensions',['../context_guide.html#context_glext_string',1,'']]],
+  ['for_20version_203_205_11',['Release notes for version 3.5',['../news.html',1,'']]],
+  ['for_20versions_20of_20windows_20older_20than_20xp_12',['Support for versions of Windows older than XP',['../moving_guide.html#moving_windows',1,'']]],
+  ['for_20vulkan_20presentation_20support_13',['Querying for Vulkan presentation support',['../vulkan_guide.html#vulkan_present',1,'']]],
+  ['for_20vulkan_20support_14',['Querying for Vulkan support',['../vulkan_guide.html#vulkan_support',1,'']]],
+  ['for_20wayland_20and_20x11_15',['Dependencies for Wayland and X11',['../compile_guide.html#compile_deps_wayland',1,'']]],
+  ['framebuffer_20related_20attributes_16',['Framebuffer related attributes',['../window_guide.html#window_attribs_fb',1,'']]],
+  ['framebuffer_20related_20hints_17',['Framebuffer related hints',['../window_guide.html#window_hints_fb',1,'']]],
+  ['framebuffer_20size_18',['Framebuffer size',['../window_guide.html#window_fbsize',1,'']]],
+  ['framebuffer_20sizes_19',['Separation of window and framebuffer sizes',['../moving_guide.html#moving_hidpi',1,'']]],
+  ['from_20glfw_202_20to_203_20',['Moving from GLFW 2 to 3',['../moving_guide.html',1,'']]],
+  ['full_20screen_20windows_21',['full screen windows',['../window_guide.html#window_windowed_full_screen',1,'&quot;Windowed full screen&quot; windows'],['../window_guide.html#window_full_screen',1,'Full screen windows']]],
+  ['function_20changes_22',['Joystick function changes',['../moving_guide.html#moving_joystick',1,'']]],
+  ['function_20pointers_23',['function pointers',['../context_guide.html#context_glext_proc',1,'Fetching function pointers'],['../vulkan_guide.html#vulkan_proc',1,'Querying Vulkan function pointers']]],
+  ['functions_24',['functions',['../news.html#new_functions',1,'New functions'],['../moving_guide.html#moving_threads',1,'Removal of threading functions'],['../moving_guide.html#moving_renamed_functions',1,'Renamed functions'],['../internals_guide.html#internals_static',1,'Static functions']]]
+];
